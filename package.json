@@ -1,0 +1,17 @@
+{
+  "name": "webgis-bencana",
+  "version": "2.0.0",
+  "description": "WebGIS Titik Bencana — Cloudflare Workers + Hono (migrasi dari Express)",
+  "private": true,
+  "scripts": {
+    "dev":    "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON"
+  },
+  "dependencies": {
+    "hono": "^4.5.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

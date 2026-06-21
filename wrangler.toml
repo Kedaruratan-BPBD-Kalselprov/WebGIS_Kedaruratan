@@ -1,0 +1,24 @@
+# wrangler.toml — Cloudflare Workers configuration
+
+name = "web-gis-kedaruratan"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# ── Static assets (index.html, admin.html, dll) ───────────────────
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# ── Environment variables (non-secret) ───────────────────────────
+[vars]
+ADMIN_PASSWORD        = "admin123"
+GOOGLE_ROOT_FOLDER_ID = "1GhexqE2mcJjBDMVkCR8ImZ_ydEjxRi8E"
+
+# ── Secrets (set via CLI, JANGAN taruh di sini) ───────────────────
+# Jalankan perintah ini sekali:
+#   wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON
+# Paste isi file service-account.json saat diminta.
+
+# ── Development ───────────────────────────────────────────────────
+[dev]
+port = 3000
