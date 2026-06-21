@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebGIS Bencana</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; overflow: hidden; }
+  #map { width: 100vw; height: 100vh; }
+
+  /* ---------- PANEL LEGENDA ---------- */
+  #legend-panel {
+    position: absolute; top: 16px; right: 16px; z-index: 1000;
+    width: 290px; background: rgba(15,15,30,0.92); border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1); overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+  }
+  #legend-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer;
+    background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.08);
+    user-select: none;
+  }
+  #legend-header span { font-weight: 600; font-size: 14px; color: #fff; }
+  #legend-toggle-btn {
+    background: none; border: none; color: #aaa; font-size: 18px; cursor: pointer;
+    transition: transform 0.3s; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  }
+  #legend-body { max-height: 72vh; overflow-y: auto; padding: 8px 0; }
+  #legend-body.collapsed { display: none; }
+
+  #legend-body::-webkit-scrollbar { width: 4px; }
+  #legend-body::-webkit-scrollbar-track { background: transparent; }
+  #legend-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+  /* ---------- LAYER ITEM ---------- */
+  .layer-group { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .layer-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+    transition: background 0.2s;
+  }
+  .layer-header:hover { background: rgba(255,255,255,0.04); }
+  .layer-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #4fc3f7; flex-shrink: 0; }
+  .layer-icon { width: 20px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .layer-name { flex: 1; font-size: 13px; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-expand-btn {
+    background: none; border: none; color: #666; font-size: 12px; cursor: pointer;
+    transition: transform 0.2s; flex-shrink: 0;
+  }
+  .layer-body { padding: 6px 16px 12px 44px; }
+  .layer-body.collapsed { display: none; }
+
+  /* per-feature legend items */
+  .pf-legend-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; font-size: 12px; color: #bbb;
+  }
+  .pf-swatch {
+    width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,0.2);
+  }
+  .pf-swatch.circle { border-radius: 50%; }
+
+  /* Opacity slider */
+  .opacity-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .opacity-row label { font-size: 11px; color: #888; width: 50px; flex-shrink: 0; }
+  .opacity-slider { flex: 1; accent-color: #4fc3f7; cursor: pointer; }
+  .opacity-val { font-size: 11px; color: #aaa; width: 32px; text-align: right; }
+
+  /* ---------- LOADING ---------- */
+  #loading-overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,0.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 9999; gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid rgba(79,195,247,0.2);
+    border-top-color: #4fc3f7; border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-text { font-size: 14px; color: #4fc3f7; }
+
+  /* ---------- POPUP ---------- */
+  .leaflet-popup-content-wrapper {
+    background: rgba(15,15,30,0.95); color: #e0e0e0; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .leaflet-popup-tip { background: rgba(15,15,30,0.95); }
+  .popup-title { font-weight: 600; font-size: 14px; color: #4fc3f7; margin-bottom: 8px; }
+  .popup-row { font-size: 12px; margin: 3px 0; }
+  .popup-row span { color: #888; }
+
+  /* ---------- BASEMAP CONTROL ---------- */
+  #basemap-control {
+    position: absolute; bottom: 30px; left: 16px; z-index: 1000;
+    display: flex; gap: 6px;
+  }
+  .bm-btn {
+    padding: 6px 12px; font-size: 12px; border: none; border-radius: 20px; cursor: pointer;
+    background: rgba(15,15,30,0.9); color: #aaa; border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
+  }
+  .bm-btn.active { background: #4fc3f7; color: #000; border-color: #4fc3f7; }
+
+  #info-box {
+    position: absolute; bottom: 30px; right: 16px; z-index: 1000;
+    font-size: 11px; color: #666; text-align: right;
+  }
+
+  /* Unconfigured badge */
+  .badge-uncfg {
+    display: inline-block; font-size: 10px; color: #607d8b;
+    background: rgba(96,125,139,0.15); border-radius: 4px; padding: 1px 5px;
+    margin-left: 4px; vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-text">Memuat data peta…</div>
+</div>
+
+<div id="map"></div>
+
+<div id="legend-panel">
+  <div id="legend-header" onclick="toggleLegend()">
+    <span>🗂 Legenda Layer</span>
+    <button id="legend-toggle-btn">▲</button>
+  </div>
+  <div id="legend-body">
+    <div id="layer-list" style="padding: 4px 0;"></div>
+    <div id="disaster-section"></div>
+  </div>
+</div>
+
+<div id="basemap-control">
+  <button class="bm-btn active" onclick="setBasemap('satellite', this)">Satelit</button>
+  <button class="bm-btn" onclick="setBasemap('osm', this)">OSM</button>
+  <button class="bm-btn" onclick="setBasemap('dark', this)">Gelap</button>
+</div>
+
+<div id="info-box">Koordinat: —</div>
+
+<script>
+// ============================================================
+// INISIALISASI PETA
+// ============================================================
+const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-3.1, 115.6],8);
+L.control.zoom({ position: 'topleft' }).addTo(map);
+L.control.attribution({ position: 'bottomright', prefix: 'WebGIS Bencana' }).addTo(map);
+
+const basemaps = {
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+  osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  dark:      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'),
+};
+basemaps.satellite.addTo(map);
+let activeBasemap = 'satellite';
+
+function setBasemap(key, btn) {
+  map.removeLayer(basemaps[activeBasemap]);
+  basemaps[key].addTo(map);
+  activeBasemap = key;
+  document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+map.on('mousemove', e => {
+  document.getElementById('info-box').textContent =
+    `Lat: ${e.latlng.lat.toFixed(5)}  Lng: ${e.latlng.lng.toFixed(5)}`;
+});
+
+// ============================================================
+// STATE
+// ============================================================
+let allLayers     = {};  // { fileId: { meta, leafletLayer, visible, opacity } }
+let disasterLayer = null;
+let symbologyData = {};
+let legendCollapsed = false;
+
+// ============================================================
+// API CLIENT — menggantikan google.script.run
+// Semua request dikirim ke REST API Express via fetch()
+// ============================================================
+async function apiFetch(endpoint, options = {}) {
+  const res  = await fetch(endpoint, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+// ============================================================
+// LOAD SEMUA DATA
+// ============================================================
+async function init() {
+  try {
+    setLoading('Memuat konfigurasi layer…');
+
+    const res = await apiFetch('/api/layers');
+    if (!res.success) {
+      alert('Gagal memuat layer: ' + res.error);
+      hideLoading();
+      return;
+    }
+
+    symbologyData = res.symbology || {};
+
+    let layers = res.layers || [];
+    // layerOrder: index 0 = paling bawah, last = paling atas
+    // '__disaster__' ikut dalam urutan ini
+    const order = res.layerOrder || [];
+
+    // Susun urutan final: GeoJSON layers + disaster, default disaster paling atas
+    const allGeoIds = layers.map(l => l.fileId);
+    let finalOrder = order.length ? order : [...allGeoIds, '__disaster__'];
+    // Tambah item baru yang belum ada di finalOrder
+    allGeoIds.forEach(id => { if (!finalOrder.includes(id)) finalOrder.push(id); });
+    if (!finalOrder.includes('__disaster__')) finalOrder.push('__disaster__');
+    // Hapus ID yang tidak ada
+    finalOrder = finalOrder.filter(id => id === '__disaster__' || allGeoIds.includes(id));
+
+    // Buat Leaflet custom pane per layer sesuai urutan z-index
+    // index 0 = bawah (z 200), last = atas (z 200+n*10)
+    finalOrder.forEach((id, i) => {
+      const paneName = 'pane_' + id.replace(/[^a-z0-9]/gi, '_');
+      const zIndex = 200 + i * 10;
+      if (!map.getPane(paneName)) {
+        map.createPane(paneName);
+        map.getPane(paneName).style.zIndex = zIndex;
+      }
+    });
+
+    renderLayerList(layers, finalOrder);
+
+    // Muat GeoJSON layers sesuai urutan (bawah ke atas)
+    const geoOrder = finalOrder.filter(id => id !== '__disaster__');
+    for (const id of geoOrder) {
+      const layer = layers.find(l => l.fileId === id);
+      if (layer) await loadLayerGeoJSON(layer);
+    }
+
+    setLoading('Memuat data bencana…');
+    await loadDisasterPoints(finalOrder);
+
+  } catch (err) {
+    console.error('Init error:', err);
+    alert('Terjadi kesalahan: ' + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// ---------- RENDER DAFTAR LAYER DI LEGENDA ----------
+function renderLayerList(layers, finalOrder) {
+  const container = document.getElementById('layer-list');
+  container.innerHTML = '';
+
+  if (!layers || layers.length === 0) {
+    container.innerHTML = '<div style="padding:12px 16px;color:#555;font-size:12px;">Belum ada layer.</div>';
+    return;
+  }
+
+  // Tampilkan legenda dari atas ke bawah (urutan terbalik dari z-order)
+  const geoOrder = (finalOrder || layers.map(l=>l.fileId))
+    .filter(id => id !== '__disaster__').reverse();
+  const orderedLayers = geoOrder
+    .map(id => layers.find(l => l.fileId === id))
+    .filter(Boolean);
+  // Tambah layer yang mungkin belum ada di order
+  layers.forEach(l => { if (!orderedLayers.find(x => x.fileId === l.fileId)) orderedLayers.push(l); });
+
+  orderedLayers.forEach(layer => {
+    const sym      = symbologyData[layer.fileId] || {};
+    const pfConfig = symbologyData['pf__' + layer.fileId] || null;
+    const color    = sym.color || sym.fillColor || '#4fc3f7';
+    const type     = sym.type || layer.type || 'polygon';
+
+    const group = document.createElement('div');
+    group.className = 'layer-group';
+    group.id = 'lg-' + layer.fileId;
+
+    const iconHtml = makeIconHtml(type, color, sym);
+
+    group.innerHTML = `
+      <div class="layer-header" onclick="toggleLayerExpand('${layer.fileId}')">
+        <input type="checkbox" class="layer-checkbox" id="cb-${layer.fileId}" checked
+          onclick="event.stopPropagation(); toggleLayerVisibility('${layer.fileId}', this.checked)">
+        <div class="layer-icon" style="${iconHtml}"></div>
+        <span class="layer-name" title="${layer.name}">${layer.name}</span>
+        <button class="layer-expand-btn" id="exp-${layer.fileId}">▼</button>
+      </div>
+      <div class="layer-body collapsed" id="lb-${layer.fileId}">
+        <div style="font-size:11px;color:#666;margin-bottom:6px;">${layer.description || 'Tidak ada deskripsi'}</div>
+        <div id="pf-legend-${layer.fileId}"></div>
+        <div class="opacity-row">
+          <label>Opasitas</label>
+          <input type="range" class="opacity-slider" min="0" max="1" step="0.05" value="1"
+            oninput="setLayerOpacity('${layer.fileId}', this.value); document.getElementById('ov-${layer.fileId}').textContent = Math.round(this.value*100)+'%'">
+          <span class="opacity-val" id="ov-${layer.fileId}">100%</span>
+        </div>
+      </div>`;
+
+    container.appendChild(group);
+
+    // Render legenda per-feature jika ada
+    if (pfConfig && pfConfig.styles) {
+      renderPerFeatureLegend(layer.fileId, pfConfig);
+    }
+  });
+}
+
+// Render legenda per-feature di dalam panel layer
+function renderPerFeatureLegend(fileId, pfConfig) {
+  const container = document.getElementById('pf-legend-' + fileId);
+  if (!container) return;
+
+  const styles   = pfConfig.styles || {};
+  const entries  = Object.keys(styles);
+  if (!entries.length) return;
+
+  let html = `<div style="font-size:10px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">
+    Per ${pfConfig.fieldName || 'fitur'}
+  </div>`;
+
+  entries.forEach(val => {
+    const s      = styles[val];
+    const fill   = s.fillColor || s.color || '#4fc3f7';
+    const stroke = s.color     || fill;
+    const shape  = s.shape     || 'polygon';
+    const isCircle = shape === 'circle' || shape === 'point';
+    html += `<div class="pf-legend-item">
+      <div class="pf-swatch${isCircle ? ' circle' : ''}"
+        style="background:${fill};border-color:${stroke};"></div>
+      <span>${val}</span>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function makeIconHtml(type, color, sym) {
+  if (type === 'point') {
+    return `background:${color}; border-radius:50%; width:14px; height:14px; margin:auto;`;
+  } else if (type === 'line') {
+    return `background:linear-gradient(${color},${color}) center/100% 3px no-repeat; background-color:transparent;`;
+  } else {
+    return `background:${sym.fillColor || color}88; border:2px solid ${color}; border-radius:3px;`;
+  }
+}
+
+// ---------- LOAD GEOJSON ----------
+async function loadLayerGeoJSON(layer) {
+  const sym      = symbologyData[layer.fileId] || {};
+  const pfConfig = symbologyData['pf__' + layer.fileId] || null;
+  setLoading(`Memuat: ${layer.name}…`);
+
+  try {
+    const res = await apiFetch(`/api/layer/${layer.fileId}`);
+    if (!res.success) {
+      console.warn('Gagal load layer:', layer.name, res.error);
+      return;
+    }
+
+    // Gunakan custom pane untuk z-order control
+    const paneName = 'pane_' + layer.fileId.replace(/[^a-z0-9]/gi, '_');
+    const leafletLayer = buildLeafletLayer(res.geojson, sym, layer, pfConfig, paneName);
+    leafletLayer.addTo(map);
+
+    allLayers[layer.fileId] = {
+      meta: layer,
+      leafletLayer,
+      visible: true,
+      opacity: 1,
+    };
+  } catch (err) {
+    console.warn('Error load layer:', layer.name, err.message);
+  }
+}
+
+// ============================================================
+// BUILD LEAFLET LAYER — mendukung per-feature symbology
+// ============================================================
+function buildLeafletLayer(geojson, sym, layerMeta, pfConfig, paneName) {
+  const type = sym.type || layerMeta.type || 'polygon';
+  const pane = paneName || undefined;
+
+  const hasPF = pfConfig && pfConfig.fieldName && pfConfig.styles &&
+                Object.keys(pfConfig.styles).length > 0;
+
+  const opts = {
+    pane,
+    onEachFeature: (feature, lyr) => {
+      lyr.on('click', () => showPopup(feature, layerMeta.name));
+    },
+  };
+
+  if (type === 'point') {
+    opts.pointToLayer = (feature, latlng) => {
+      let pointSym = sym;
+      if (hasPF) {
+        const val = feature.properties && feature.properties[pfConfig.fieldName];
+        if (val !== undefined && val !== null) {
+          const key = String(val).trim();
+          if (pfConfig.styles[key]) pointSym = { ...sym, ...pfConfig.styles[key] };
+        }
+      }
+      const shape = pointSym.shape || 'circle';
+      if (shape === 'circle') {
+        return L.circleMarker(latlng, {
+          radius:      pointSym.radius      || 8,
+          color:       pointSym.color       || '#3498db',
+          weight:      pointSym.weight      || 2,
+          fillColor:   pointSym.fillColor   || pointSym.color || '#3498db',
+          fillOpacity: pointSym.fillOpacity !== undefined ? pointSym.fillOpacity : 0.8,
+          pane,
+        });
+      } else {
+        return L.marker(latlng, { icon: makeShapeIcon(shape, pointSym), pane });
+      }
+    };
+  } else if (type === 'line') {
+    opts.style = (feature) => {
+      let s = sym;
+      if (hasPF) {
+        const val = feature.properties && feature.properties[pfConfig.fieldName];
+        if (val !== undefined && val !== null && pfConfig.styles[String(val).trim()]) {
+          s = { ...sym, ...pfConfig.styles[String(val).trim()] };
+        }
+      }
+      return {
+        color:     s.color     || '#3498db',
+        weight:    s.weight    || 3,
+        opacity:   s.opacity   !== undefined ? s.opacity : 1,
+        dashArray: s.dashArray || null,
+      };
+    };
+  } else {
+    opts.style = (feature) => {
+      let s = sym;
+      if (hasPF) {
+        const val = feature.properties && feature.properties[pfConfig.fieldName];
+        if (val !== undefined && val !== null && pfConfig.styles[String(val).trim()]) {
+          s = { ...sym, ...pfConfig.styles[String(val).trim()] };
+        }
+      }
+      return {
+        color:       s.color       || '#2ecc71',
+        weight:      s.weight      || 2,
+        fillColor:   s.fillColor   || s.color || '#2ecc71',
+        fillOpacity: s.fillOpacity !== undefined ? s.fillOpacity : 0.4,
+      };
+    };
+  }
+
+  return L.geoJSON(geojson, opts);
+}
+
+// ---------- TITIK BENCANA ----------
+async function loadDisasterPoints(finalOrder) {
+  try {
+    const res = await apiFetch('/api/disaster');
+    if (!res.success || !res.features || res.features.length === 0) {
+      renderDisasterLegend(null);
+      return;
+    }
+
+    if (disasterLayer) map.removeLayer(disasterLayer);
+
+    // Gunakan custom pane untuk titik bencana
+    const paneName = 'pane___disaster__';
+
+    disasterLayer = L.geoJSON({ type: 'FeatureCollection', features: res.features }, {
+      pane: paneName,
+      pointToLayer: (feature, latlng) => {
+        const s = feature.properties._style;
+        const color       = s.color       || '#607d8b';
+        const fillColor   = s.fillColor   || s.color || '#607d8b';
+        const radius      = s.radius      || 8;
+        const fillOpacity = s.fillOpacity !== undefined ? s.fillOpacity : 0.8;
+        const weight      = s.weight      || 2;
+        const shape       = s.shape       || 'circle';
+
+        if (shape === 'circle') {
+          return L.circleMarker(latlng, { radius, color, weight, fillColor, fillOpacity, pane: paneName });
+        } else {
+          return L.marker(latlng, { icon: makeShapeIcon(shape, s), pane: paneName });
+        }
+      },
+      onEachFeature: (feature, lyr) => {
+        lyr.on('click', () => {
+          const p = feature.properties;
+          const s = p._style || {};
+          const uncfgBadge = s._unconfigured
+            ? '<span style="font-size:10px;color:#607d8b;margin-left:4px;">(belum dikonfigurasi)</span>'
+            : '';
+
+          let extraRows = '';
+          Object.keys(p).filter(k => !['lat','lng','jenis','nama','kabkota','kec','desa','tanggal','_style','_rowIndex'].includes(k)).forEach(k => {
+            extraRows += `<div class="popup-row"><span>${k}: </span>${p[k] ?? '-'}</div>`;
+          });
+
+          const html = `
+            <div class="popup-title">🚨 ${p.jenis || 'Bencana'}${uncfgBadge}</div>
+            <div class="popup-row"><span>Nama: </span>${p.nama || '-'}</div>
+            <div class="popup-row"><span>Kab/Kota: </span>${p.kabkota || '-'}</div>
+            <div class="popup-row"><span>Kecamatan: </span>${p.kec || '-'}</div>
+            <div class="popup-row"><span>Desa: </span>${p.desa || '-'}</div>
+            <div class="popup-row"><span>Tanggal: </span>${p.tanggal || '-'}</div>
+            <div class="popup-row"><span>Koordinat: </span>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
+            ${extraRows}`;
+          L.popup({ maxWidth: 280, className: 'custom-popup' })
+            .setLatLng([p.lat, p.lng])
+            .setContent(html)
+            .openOn(map);
+        });
+      },
+    }).addTo(map);
+
+    // Sembunyikan jenis yang dinonaktifkan dari admin (_enabled: false)
+    const disabledJenis = new Set();
+    res.features.forEach(f => {
+      const s = f.properties._style || {};
+      if (s._enabled === false) disabledJenis.add(f.properties.jenis);
+    });
+    if (disabledJenis.size > 0) {
+      disasterLayer.eachLayer(l => {
+        if (l.feature && disabledJenis.has(l.feature.properties.jenis)) {
+          map.removeLayer(l);
+        }
+      });
+    }
+
+    renderDisasterLegend(res.features);
+
+  } catch (err) {
+    console.warn('Error load disaster:', err.message);
+    renderDisasterLegend(null);
+  }
+}
+
+function makeShapeIcon(shape, sym) {
+  const size      = (sym.radius || 8) * 2;
+  const fillColor = sym.fillColor || sym.color || '#607d8b';
+  const stroke    = sym.color || '#fff';
+  let svgPath = '';
+  if (shape === 'triangle') {
+    svgPath = `<polygon points="${size/2},2 ${size-2},${size-2} 2,${size-2}" fill="${fillColor}" stroke="${stroke}" stroke-width="1.5"/>`;
+  } else if (shape === 'square') {
+    svgPath = `<rect x="2" y="2" width="${size-4}" height="${size-4}" fill="${fillColor}" stroke="${stroke}" stroke-width="1.5"/>`;
+  } else if (shape === 'diamond') {
+    svgPath = `<polygon points="${size/2},2 ${size-2},${size/2} ${size/2},${size-2} 2,${size/2}" fill="${fillColor}" stroke="${stroke}" stroke-width="1.5"/>`;
+  } else {
+    svgPath = `<circle cx="${size/2}" cy="${size/2}" r="${size/2-2}" fill="${fillColor}" stroke="${stroke}" stroke-width="1.5"/>`;
+  }
+  return L.divIcon({
+    html: `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${svgPath}</svg>`,
+    className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
+  });
+}
+
+function renderDisasterLegend(features) {
+  const container = document.getElementById('disaster-section');
+  if (!features || features.length === 0) { container.innerHTML = ''; return; }
+
+  const jenisMap = {};
+  features.forEach(f => {
+    const j = f.properties.jenis || 'Tidak diketahui';
+    if (!jenisMap[j]) {
+      jenisMap[j] = {
+        count: 0,
+        style: f.properties._style || {},
+      };
+    }
+    jenisMap[j].count++;
+  });
+
+  let html = `
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding:8px 16px 4px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;">
+      Titik Bencana (${features.length})
+    </div>`;
+
+  Object.keys(jenisMap).sort().forEach(jenis => {
+    const { count, style: s } = jenisMap[jenis];
+    const fill   = s.fillColor || s.color || '#607d8b';
+    const stroke = s.color     || fill;
+    const uncfg  = s._unconfigured ? ' <span style="font-size:10px;color:#456;">(default)</span>' : '';
+    const enabled = s._enabled !== false;
+    const safeId  = jenis.replace(/[^a-z0-9]/gi, '_');
+
+    html += `
+      <div class="layer-header" style="padding:6px 16px;">
+        <input type="checkbox" class="layer-checkbox" id="jcb-${safeId}"
+          ${enabled ? 'checked' : ''}
+          onclick="event.stopPropagation(); toggleJenisBencana('${jenis}', this.checked)"
+          title="Tampilkan/sembunyikan jenis ini">
+        <div style="width:14px;height:14px;border-radius:50%;background:${fill};border:2px solid ${stroke};flex-shrink:0;opacity:${enabled?1:0.4};"></div>
+        <span class="layer-name" style="opacity:${enabled?1:0.5}">${jenis}${uncfg}</span>
+        <span style="font-size:11px;color:#555;">${count}</span>
+      </div>`;
+  });
+
+  html += `
+    <div style="padding:6px 16px 12px 16px;">
+      <div class="opacity-row">
+        <label>Opasitas</label>
+        <input type="range" class="opacity-slider" min="0" max="1" step="0.05" value="1"
+          oninput="setDisasterOpacity(this.value); document.getElementById('dov').textContent=Math.round(this.value*100)+'%'">
+        <span class="opacity-val" id="dov">100%</span>
+      </div>
+    </div>`;
+
+  container.innerHTML = html;
+}
+
+function toggleJenisBencana(jenis, visible) {
+  if (!disasterLayer) return;
+  disasterLayer.eachLayer(l => {
+    if (l.feature && l.feature.properties && l.feature.properties.jenis === jenis) {
+      if (visible) {
+        if (!map.hasLayer(l)) l.addTo(map);
+      } else {
+        if (map.hasLayer(l)) map.removeLayer(l);
+      }
+    }
+  });
+}
+
+// ============================================================
+// KONTROL LAYER
+// ============================================================
+function toggleLayerVisibility(fileId, visible) {
+  const entry = allLayers[fileId];
+  if (!entry) return;
+  if (visible) { entry.leafletLayer.addTo(map); }
+  else { map.removeLayer(entry.leafletLayer); }
+  entry.visible = visible;
+}
+
+function setLayerOpacity(fileId, value) {
+  const entry = allLayers[fileId];
+  if (!entry) return;
+  entry.opacity = parseFloat(value);
+  entry.leafletLayer.eachLayer(l => {
+    if (l.setOpacity) l.setOpacity(entry.opacity);
+    if (l.setStyle)   l.setStyle({ opacity: entry.opacity, fillOpacity: entry.opacity * 0.6 });
+  });
+}
+
+function setDisasterOpacity(value) {
+  if (!disasterLayer) return;
+  const v = parseFloat(value);
+  disasterLayer.eachLayer(l => {
+    if (l.setOpacity) l.setOpacity(v);
+    if (l.setStyle)   l.setStyle({ opacity: v, fillOpacity: v * 0.85 });
+  });
+}
+
+function toggleLayerExpand(fileId) {
+  const body = document.getElementById('lb-' + fileId);
+  const btn  = document.getElementById('exp-' + fileId);
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  btn.style.transform = collapsed ? 'rotate(-90deg)' : '';
+}
+
+function toggleLegend() {
+  legendCollapsed = !legendCollapsed;
+  document.getElementById('legend-body').classList.toggle('collapsed', legendCollapsed);
+  document.getElementById('legend-toggle-btn').style.transform = legendCollapsed ? 'rotate(180deg)' : '';
+}
+
+// ============================================================
+// POPUP LAYER BIASA
+// ============================================================
+function showPopup(feature, layerName) {
+  const p      = feature.properties || {};
+  const coords = feature.geometry.coordinates;
+  let rows = Object.keys(p)
+    .filter(k => !k.startsWith('_'))
+    .map(k => `<div class="popup-row"><span>${k}: </span>${p[k] ?? '-'}</div>`)
+    .join('');
+  if (!rows) rows = '<div class="popup-row" style="color:#555;">Tidak ada atribut.</div>';
+
+  const html   = `<div class="popup-title">📍 ${layerName}</div>${rows}`;
+  const latlng = coords.length >= 2 ? [coords[1], coords[0]] : map.getCenter();
+  L.popup({ maxWidth: 300 }).setLatLng(latlng).setContent(html).openOn(map);
+}
+
+// ============================================================
+// LOADING
+// ============================================================
+function setLoading(msg) {
+  document.getElementById('loading-text').textContent = msg;
+  document.getElementById('loading-overlay').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin WebGIS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+
+  /* ---------- LOGIN ---------- */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: #0f0f1a;
+  }
+  .login-card {
+    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 40px; width: 360px; text-align: center;
+  }
+  .login-card h2 { font-size: 20px; color: #4fc3f7; margin-bottom: 8px; }
+  .login-card p  { font-size: 13px; color: #555; margin-bottom: 24px; }
+  .input-field {
+    width: 100%; padding: 12px 16px; background: #0f0f1a;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    color: #e0e0e0; font-size: 14px; margin-bottom: 16px;
+  }
+  .input-field:focus { outline: none; border-color: #4fc3f7; }
+  .btn-primary {
+    width: 100%; padding: 12px; background: #4fc3f7; color: #000;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-primary:hover { background: #29b6f6; }
+
+  /* ---------- LAYOUT ---------- */
+  #admin-screen { display: none; }
+  .admin-layout { display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: #12122a;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-logo {
+    padding: 20px 16px; font-size: 15px; font-weight: 700; color: #4fc3f7;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .sidebar-menu { flex: 1; padding: 8px 0; overflow-y: auto; }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; font-size: 13px; color: #888; cursor: pointer;
+    border-radius: 0; transition: all 0.2s; user-select: none;
+  }
+  .menu-item:hover  { background: rgba(79,195,247,0.06); color: #ccc; }
+  .menu-item.active { background: rgba(79,195,247,0.1);  color: #4fc3f7; border-left: 3px solid #4fc3f7; }
+  .menu-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .main-content { flex: 1; overflow-y: auto; background: #0f0f1a; }
+
+  .section { display: none; padding: 32px; }
+  .section.active { display: block; }
+  .section-title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .section-sub   { font-size: 13px; color: #555; margin-bottom: 24px; }
+
+  .card {
+    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+  }
+  .card-title { font-size: 14px; font-weight: 600; color: #aaa; margin-bottom: 16px; }
+
+  .form-row { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; color: #666; margin-bottom: 6px; }
+  .form-control {
+    width: 100%; padding: 10px 14px; background: #0f0f1a;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    color: #e0e0e0; font-size: 13px;
+  }
+  .form-control:focus { outline: none; border-color: #4fc3f7; }
+  select.form-control option { background: #1a1a2e; }
+
+  .btn {
+    padding: 8px 16px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary2 { background: #4fc3f7; color: #000; }
+  .btn-primary2:hover { background: #29b6f6; }
+  .btn-danger   { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+  .btn-danger:hover { background: rgba(231,76,60,0.25); }
+  .btn-success  { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+  .btn-success:hover { background: rgba(46,204,113,0.25); }
+  .btn-secondary { background: rgba(255,255,255,0.07); color: #aaa; border: 1px solid rgba(255,255,255,0.1); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.12); color: #ddd; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { padding: 10px 12px; text-align: left; color: #555; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .badge-point   { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .badge-line    { background: rgba(52,152,219,0.15); color: #3498db; }
+  .badge-polygon { background: rgba(46,204,113,0.15); color: #2ecc71; }
+
+  .color-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .color-swatch {
+    width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; transition: border-color 0.15s;
+  }
+  .color-swatch.selected { border-color: #fff; }
+
+  .upload-area {
+    border: 2px dashed rgba(79,195,247,0.3); border-radius: 12px;
+    padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .upload-area:hover { border-color: #4fc3f7; background: rgba(79,195,247,0.03); }
+  .upload-area p { color: #555; font-size: 13px; margin-top: 8px; }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 12px 24px; font-size: 13px; color: #e0e0e0;
+    z-index: 9999; opacity: 0; transition: opacity 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: rgba(46,204,113,0.4); color: #2ecc71; }
+  #toast.error   { border-color: rgba(231,76,60,0.4);  color: #e74c3c; }
+
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: #4fc3f7; width: 0; z-index: 9998; transition: width 0.3s;
+  }
+
+  .col-map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sym-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sym-label { font-size: 13px; color: #aaa; min-width: 120px; }
+  .row-flex { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+  /* -------- PER-FEATURE SYMBOLOGY -------- */
+  .pf-section {
+    background: rgba(79,195,247,0.04); border: 1px solid rgba(79,195,247,0.15);
+    border-radius: 10px; padding: 16px; margin-top: 12px;
+  }
+  .pf-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .pf-title { font-size: 13px; font-weight: 600; color: #4fc3f7; }
+
+  /* Tab-style mode selector */
+  .mode-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .mode-tab {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #666;
+    transition: all 0.2s;
+  }
+  .mode-tab.active { background: #4fc3f7; color: #000; border-color: #4fc3f7; }
+
+  /* Feature style row */
+  .feat-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .feat-swatch {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.3); cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .feat-swatch:hover { transform: scale(1.15); }
+  .feat-label { flex: 1; font-size: 13px; color: #ccc; }
+  .feat-color-inputs { display: flex; gap: 6px; align-items: center; }
+  .feat-color-inputs input[type=color] {
+    width: 28px; height: 28px; border: none; background: none;
+    cursor: pointer; padding: 0; border-radius: 4px;
+  }
+  .feat-color-label { font-size: 10px; color: #555; }
+
+  /* Mini color picker popup */
+  .mini-picker-wrap { position: relative; display: inline-block; }
+  .mini-picker {
+    position: absolute; z-index: 500; background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+    padding: 10px; width: 200px; top: 30px; left: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .mini-picker.hidden { display: none; }
+  .mini-grid { display: grid; grid-template-columns: repeat(8,1fr); gap: 4px; }
+  .mini-swatch {
+    width: 20px; height: 20px; border-radius: 4px; cursor: pointer;
+    border: 1.5px solid transparent; transition: border-color 0.1s;
+  }
+  .mini-swatch.selected { border-color: #fff; }
+  .mini-custom { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .mini-custom label { font-size: 11px; color: #666; }
+  .mini-custom input { width: 32px; height: 24px; border: none; background: none; cursor: pointer; }
+
+  /* Layer Order */
+  .layer-order-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 8px;
+    margin-bottom: 8px; cursor: grab; user-select: none;
+    border: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
+  }
+  .layer-order-item:hover { background: rgba(79,195,247,0.06); }
+  .layer-order-item.dragging { opacity: 0.4; border: 1px dashed #4fc3f7; }
+  .layer-order-item.drag-over { background: rgba(79,195,247,0.12); border-color: rgba(79,195,247,0.4); }
+  .layer-order-item.disaster-order-item {
+    border-color: rgba(255,138,101,0.25);
+    background: rgba(255,138,101,0.05);
+  }
+  .layer-order-item.disaster-order-item:hover {
+    background: rgba(255,138,101,0.1);
+  }
+  .drag-handle { color: #444; font-size: 18px; cursor: grab; flex-shrink: 0; }
+  .layer-order-badge { font-size: 11px; background: rgba(79,195,247,0.15); color: #4fc3f7; padding: 2px 8px; border-radius: 10px; }
+
+  /* Toggle switch */
+  .toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; cursor: pointer; inset: 0; background: #333;
+    border-radius: 20px; transition: background 0.2s;
+  }
+  .toggle-slider:before {
+    content: ''; position: absolute; width: 14px; height: 14px;
+    left: 3px; top: 3px; background: #888; border-radius: 50%; transition: all 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: rgba(79,195,247,0.3); }
+  .toggle-switch input:checked + .toggle-slider:before { background: #4fc3f7; transform: translateX(16px); }
+
+  /* Ratio bar */
+  .ratio-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .ratio-bar-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; }
+  .ratio-bar { height: 100%; border-radius: 5px; transition: width 0.3s; }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="font-size:40px;margin-bottom:12px;">🗺</div>
+    <h2>Admin WebGIS</h2>
+    <p>Masukkan password untuk melanjutkan</p>
+    <!-- FIX: tidak menggunakan <form> tag agar tidak error di Apps Script iframe -->
+    <input type="password" class="input-field" id="password-input" placeholder="Password admin"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="btn-primary" onclick="doLogin()">Masuk</button>
+    <div id="login-error" style="margin-top:12px;font-size:12px;color:#e74c3c;display:none;"></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-screen">
+  <div class="admin-layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">🗺 WebGIS Admin</div>
+      <div class="sidebar-menu">
+        <div class="menu-item active" onclick="showSection('layers', event)">
+          <span class="menu-icon">🗂</span> Manajemen Layer
+        </div>
+        <div class="menu-item" onclick="showSection('symbology', event)">
+          <span class="menu-icon">🎨</span> Symbology
+        </div>
+        <div class="menu-item" onclick="showSection('perfeature', event)">
+          <span class="menu-icon">🖌</span> Symbology Per-Fitur
+        </div>
+        <div class="menu-item" onclick="showSection('disaster', event)">
+          <span class="menu-icon">🚨</span> Titik Bencana
+        </div>
+        <div class="menu-item" onclick="showSection('disaster-style', event)">
+          <span class="menu-icon">🔴</span> Style Bencana
+        </div>
+      </div>
+      <div style="padding:16px;font-size:11px;color:#333;border-top:1px solid rgba(255,255,255,0.04);">
+        <a href="#" onclick="openPublicMap()" style="color:#4fc3f7;text-decoration:none;">← Lihat Peta Publik</a>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main-content">
+
+      <!-- SECTION: LAYER -->
+      <div class="section active" id="sec-layers">
+        <div class="section-title">Manajemen Layer</div>
+        <div class="section-sub">Upload dan kelola data spasial (format GeoJSON)</div>
+
+        <div class="card">
+          <div class="card-title">Urutan Layer (Drag untuk Atur)</div>
+          <div style="font-size:12px;color:#555;margin-bottom:12px;">Layer paling atas = ditampilkan paling depan di peta. Drag ↕ untuk mengubah urutan.</div>
+          <div id="layer-order-list"></div>
+          <button class="btn btn-primary2" onclick="saveLayerOrder()" style="margin-top:12px;">💾 Simpan Urutan</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Upload Layer Baru</div>
+          <div class="form-row">
+            <label class="form-label">Nama Layer</label>
+            <input type="text" class="form-control" id="upload-name" placeholder="Contoh: Batas Kecamatan">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Tipe Geometri</label>
+            <select class="form-control" id="upload-type">
+              <option value="polygon">Polygon</option>
+              <option value="line">Line / Polyline</option>
+              <option value="point">Point</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Deskripsi (opsional)</label>
+            <input type="text" class="form-control" id="upload-desc" placeholder="Deskripsi singkat layer">
+          </div>
+          <div class="form-row">
+            <label class="form-label">File GeoJSON</label>
+            <div class="upload-area" onclick="document.getElementById('file-input').click()">
+              <div style="font-size:32px;">📁</div>
+              <p id="upload-filename">Klik untuk pilih file .geojson</p>
+            </div>
+            <input type="file" id="file-input" accept=".geojson,.json" style="display:none"
+              onchange="handleFileSelect(this)">
+          </div>
+          <button class="btn btn-primary2" onclick="doUpload()">⬆ Upload Layer</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Daftar Layer</div>
+          <div id="layer-table-container"><div style="color:#444;font-size:13px;">Memuat…</div></div>
+        </div>
+      </div>
+
+      <!-- SECTION: SYMBOLOGY (global per layer) -->
+      <div class="section" id="sec-symbology">
+        <div class="section-title">Symbology Layer</div>
+        <div class="section-sub">Atur warna dan gaya default untuk setiap layer</div>
+        <div id="sym-container"><div style="color:#444;font-size:13px;">Memuat…</div></div>
+        <button class="btn btn-primary2" onclick="saveSymbology()" style="margin-top:8px;">💾 Simpan Symbology</button>
+      </div>
+
+      <!-- SECTION: PER-FEATURE SYMBOLOGY (BARU) -->
+      <div class="section" id="sec-perfeature">
+        <div class="section-title">Symbology Per-Fitur</div>
+        <div class="section-sub">
+          Atur warna berbeda untuk setiap nilai atribut — misalnya warna berbeda per Kecamatan, per Jenis Lahan, dll.
+          Mirip seperti "Categorized" di ArcGIS / QGIS.
+        </div>
+
+        <div class="card">
+          <div class="card-title">1. Pilih Layer</div>
+          <div class="form-row">
+            <select class="form-control" id="pf-layer-select" onchange="onPfLayerChange()">
+              <option value="">— Pilih layer —</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="pf-config-area" style="display:none;">
+          <div class="card">
+            <div class="card-title">2. Pilih Field / Kolom Atribut</div>
+            <p style="font-size:12px;color:#555;margin-bottom:12px;">
+              Pilih kolom atribut yang ingin dijadikan dasar pewarnaan (contoh: KECAMATAN, JENIS_LAHAN)
+            </p>
+            <div class="row-flex">
+              <div style="flex:1;">
+                <select class="form-control" id="pf-field-select">
+                  <option value="">— Pilih field —</option>
+                </select>
+              </div>
+              <button class="btn btn-primary2" onclick="loadFeatureValues()">Muat Nilai →</button>
+            </div>
+          </div>
+
+          <div class="card" id="pf-values-card" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div class="card-title" style="margin:0;">3. Atur Warna per Nilai</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-secondary" onclick="applyRandomColors()" title="Beri setiap nilai warna acak yang berbeda">🎲 Warna Acak</button>
+                <button class="btn btn-secondary" onclick="applyRatioColors()" title="Beri gradasi warna berdasarkan urutan">🌈 Gradasi Warna</button>
+              </div>
+            </div>
+
+            <!-- Pilihan mode -->
+            <div style="margin-bottom:16px;">
+              <div style="font-size:12px;color:#666;margin-bottom:8px;">Mode pewarnaan:</div>
+              <div class="mode-tabs">
+                <div class="mode-tab active" id="tab-manual" onclick="setMode('manual')">✏ Manual</div>
+                <div class="mode-tab" id="tab-random" onclick="setMode('random')">🎲 Acak Otomatis</div>
+                <div class="mode-tab" id="tab-ratio"  onclick="setMode('ratio')">🌈 Gradasi</div>
+              </div>
+              <div id="mode-desc" style="font-size:11px;color:#555;">
+                Atur warna setiap nilai secara manual.
+              </div>
+            </div>
+
+            <div id="pf-feature-list"></div>
+
+            <div style="margin-top:16px;display:flex;gap:8px;">
+              <button class="btn btn-primary2" onclick="savePfSymbology()">💾 Simpan & Terapkan</button>
+              <button class="btn btn-danger" onclick="clearPfSymbology()">🗑 Hapus Per-Fitur</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION: BENCANA CONFIG -->
+      <div class="section" id="sec-disaster">
+        <div class="section-title">Konfigurasi Spreadsheet Bencana</div>
+        <div class="section-sub">Hubungkan data titik bencana dari Google Sheets</div>
+
+        <div class="card">
+          <div class="card-title">1. Masukkan ID Spreadsheet</div>
+          <div class="row-flex">
+            <div class="form-row" style="flex:1">
+              <label class="form-label">Spreadsheet ID (dari URL Google Sheets)</label>
+              <input type="text" class="form-control" id="ss-id" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+            </div>
+            <div class="form-row">
+              <button class="btn btn-primary2" onclick="loadSheets()">Muat Sheet →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="sheet-picker-card" style="display:none">
+          <div class="card-title">2. Pilih Sheet</div>
+          <select class="form-control" id="sheet-select" onchange="loadColumns()">
+            <option value="">— Pilih sheet —</option>
+          </select>
+        </div>
+
+        <div class="card" id="col-map-card" style="display:none">
+          <div class="card-title">3. Mapping Kolom</div>
+          <p style="font-size:12px;color:#555;margin-bottom:16px;">Pilih kolom yang berisi data berikut:</p>
+          <div class="col-map-grid" id="col-map-grid"></div>
+          <div class="form-row" style="margin-top:16px;">
+            <label class="form-label">Kolom tambahan (pisah koma)</label>
+            <input type="text" class="form-control" id="extra-cols" placeholder="Contoh: Korban Jiwa, Kerugian">
+          </div>
+          <button class="btn btn-primary2" onclick="saveSheetConfig()" style="margin-top:8px;">💾 Simpan Konfigurasi</button>
+        </div>
+      </div>
+
+      <!-- SECTION: STYLE BENCANA -->
+      <div class="section" id="sec-disaster-style">
+        <div class="section-title">Style Titik Bencana</div>
+        <div class="section-sub">Atur warna dan bentuk titik per jenis bencana</div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="card-title" style="margin-bottom:0;">Style per jenis bencana</div>
+            <button class="btn btn-primary2" onclick="loadJenisBencana()" id="btn-reload-jenis" style="font-size:12px;padding:6px 14px;">
+              🔄 Muat dari Spreadsheet
+            </button>
+          </div>
+          <div id="jenis-load-status" style="font-size:12px;color:#555;margin-bottom:12px;">
+            Klik "Muat dari Spreadsheet" untuk membaca jenis bencana dari data.
+          </div>
+          <div id="jenis-style-list"></div>
+          <button class="btn btn-primary2" onclick="saveDisasterStyle()" style="margin-top:16px;" id="btn-save-disaster" disabled>💾 Simpan Style Bencana</button>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /admin-layout -->
+</div><!-- /admin-screen -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let adminPassword  = '';
+let layersMeta     = [];
+let symbologyData  = {};
+let sheetColumns   = [];
+let editedSym      = {};
+let disasterStyles = {};
+let layerOrder     = [];  // array of fileId in display order (index 0 = bottom, last = top)
+
+// Per-feature state
+let pfCurrentFileId  = null;
+let pfCurrentField   = null;
+let pfCurrentValues  = [];    // [{value, count}]
+let pfCurrentStyles  = {};    // { 'NilaiField': { color, fillColor, ... } }
+let pfCurrentMode    = 'manual';
+let pfGeojsonCache   = {};    // { fileId: geojson }
+
+// ============================================================
+// API CLIENT — menggantikan google.script.run
+// Semua request dikirim ke REST API Express via fetch()
+// ============================================================
+async function apiFetch(endpoint, options = {}) {
+  const res = await fetch(endpoint, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+// Helper POST JSON
+async function apiPost(endpoint, body) {
+  return apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+async function doLogin() {
+  const pw = document.getElementById('password-input').value;
+  try {
+    const res = await apiPost('/api/admin/login', { password: pw });
+    if (res.success) {
+      adminPassword = pw;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-screen').style.display = 'block';
+      loadAdminData();
+    } else {
+      showLoginError(res.error || 'Password salah.');
+    }
+  } catch (err) {
+    showLoginError('Gagal menghubungi server: ' + err.message);
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ============================================================
+// LOAD DATA ADMIN
+// ============================================================
+async function loadAdminData() {
+  progress(30);
+  try {
+    const res = await apiFetch('/api/admin/layers');
+    progress(70);
+    if (!res.success) { toast('Gagal memuat data: ' + res.error, 'error'); progress(0); return; }
+    layersMeta    = res.layers || [];
+    symbologyData = res.symbology || {};
+    editedSym     = JSON.parse(JSON.stringify(symbologyData));
+
+    // Susun daftar semua item yang bisa diurutkan: GeoJSON layers + titik bencana
+    // Titik bencana diberi ID khusus '__disaster__'
+    const allIds = layersMeta.map(l => l.fileId).concat(['__disaster__']);
+
+    // Inisialisasi urutan dari metadata, tambahkan item baru yang belum ada
+    let savedOrder = res.layerOrder || [];
+    // Tambah item baru yang belum ada di savedOrder
+    allIds.forEach(id => { if (!savedOrder.includes(id)) savedOrder.push(id); });
+    // Hapus item yang sudah tidak ada
+    savedOrder = savedOrder.filter(id => allIds.includes(id));
+    layerOrder = savedOrder;
+
+    renderLayerTable();
+    renderLayerOrderList();
+    renderSymbologyEditor();
+    renderDisasterStyleEditor();
+    renderPfLayerDropdown();
+    loadCurrentSheetConfig();
+    progress(100);
+    setTimeout(() => progress(0), 400);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+    progress(0);
+  }
+}
+
+// ============================================================
+// LAYER ORDER (Drag & Drop)
+// ============================================================
+let dragSrcIdx = null;
+
+function renderLayerOrderList() {
+  const c = document.getElementById('layer-order-list');
+
+  // Buat map nama & tipe untuk semua item termasuk titik bencana
+  const itemMeta = {};
+  layersMeta.forEach(l => {
+    itemMeta[l.fileId] = { name: l.name, type: l.type || 'polygon', icon: '🗺' };
+  });
+  itemMeta['__disaster__'] = { name: 'Titik Bencana (Spreadsheet)', type: 'point', icon: '🚨' };
+
+  if (!layerOrder.length) {
+    c.innerHTML = '<div style="color:#444;font-size:13px;">Belum ada layer.</div>';
+    return;
+  }
+
+  // layerOrder: index 0 = paling bawah, last = paling atas
+  // Tampilkan terbalik: paling atas di UI = paling depan di peta
+  const ordered = [...layerOrder].reverse();
+
+  let html = '';
+  ordered.forEach((id, i) => {
+    const meta   = itemMeta[id] || { name: id, type: '?', icon: '📄' };
+    const isTop    = i === 0;
+    const isBottom = i === ordered.length - 1;
+    const isDisaster = id === '__disaster__';
+
+    html += `<div class="layer-order-item${isDisaster ? ' disaster-order-item' : ''}" id="ord-${id.replace(/[^a-z0-9]/gi,'_')}"
+      draggable="true"
+      ondragstart="onDragStart(event,'${id}')"
+      ondragover="onDragOver(event)"
+      ondrop="onDrop(event,'${id}')"
+      ondragleave="onDragLeave(event)"
+      ondragend="onDragEnd(event)">
+      <span class="drag-handle">⋮⋮</span>
+      <span style="font-size:16px;flex-shrink:0;">${meta.icon}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;color:${isDisaster?'#ff8a65':'#ddd'};font-weight:${isDisaster?'600':'400'};">${meta.name}</div>
+        <div style="font-size:11px;color:#555;">${meta.type}</div>
+      </div>
+      ${isTop    ? '<span class="layer-order-badge">Paling Atas ↑</span>' : ''}
+      ${isBottom ? '<span class="layer-order-badge" style="color:#888;background:rgba(100,100,100,0.15);">Paling Bawah ↓</span>' : ''}
+    </div>`;
+  });
+  c.innerHTML = html;
+}
+
+function onDragStart(e, fileId) {
+  dragSrcIdx = fileId;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function onDragEnd(e)   { e.currentTarget.classList.remove('dragging', 'drag-over'); }
+
+function onDrop(e, targetId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (dragSrcIdx === targetId) return;
+
+  // layerOrder index 0 = bottom, last = top
+  // UI is displayed reversed, so flip back when computing new order
+  const ordered = [...layerOrder].reverse(); // 0 = top in UI
+  const srcUiIdx  = ordered.indexOf(dragSrcIdx);
+  const tgtUiIdx  = ordered.indexOf(targetId);
+  if (srcUiIdx < 0 || tgtUiIdx < 0) return;
+
+  ordered.splice(srcUiIdx, 1);
+  ordered.splice(tgtUiIdx, 0, dragSrcIdx);
+  layerOrder = [...ordered].reverse(); // restore to bottom-first
+  renderLayerOrderList();
+}
+
+async function saveLayerOrder() {
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/layer-order', { order: layerOrder });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) toast('Urutan layer disimpan! Muat ulang peta untuk melihat.', 'success');
+    else toast('Gagal: ' + res.error, 'error');
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// LAYER TABLE
+// ============================================================
+function renderLayerTable() {
+  const c = document.getElementById('layer-table-container');
+  if (!layersMeta.length) {
+    c.innerHTML = '<div style="color:#444;font-size:13px;text-align:center;padding:24px;">Belum ada layer.</div>';
+    return;
+  }
+  let html = `<table class="data-table"><thead><tr>
+    <th>Nama</th><th>Tipe</th><th>Deskripsi</th><th>Upload</th><th>Aksi</th>
+  </tr></thead><tbody>`;
+  layersMeta.forEach(l => {
+    const date  = l.uploadedAt ? new Date(l.uploadedAt).toLocaleDateString('id-ID') : '-';
+    const pfKey = '__pf_' + l.fileId + '__';
+    const hasPF = !!editedSym[pfKey];
+    html += `<tr>
+      <td style="font-weight:500;color:#ddd;">${l.name}${hasPF ? ' <span title="Ada symbology per-fitur" style="font-size:11px;color:#4fc3f7;">🖌</span>' : ''}</td>
+      <td><span class="badge badge-${l.type||'polygon'}">${l.type||'polygon'}</span></td>
+      <td style="color:#666;">${l.description||'-'}</td>
+      <td style="color:#555;">${date}</td>
+      <td>
+        <button class="btn btn-danger" onclick="doDeleteLayer('${l.fileId}','${l.name}')">🗑 Hapus</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+// ============================================================
+// UPLOAD LAYER
+// ============================================================
+let selectedFileBase64 = null; // tetap ada untuk kompatibilitas cek
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('upload-filename').textContent = file.name;
+  selectedFileBase64 = true; // menandai file sudah dipilih
+}
+
+async function doUpload() {
+  const name = document.getElementById('upload-name').value.trim();
+  const type = document.getElementById('upload-type').value;
+  const desc = document.getElementById('upload-desc').value.trim();
+  if (!name)               return toast('Masukkan nama layer.', 'error');
+  const fileInput = document.getElementById('file-input');
+  if (!fileInput.files[0]) return toast('Pilih file GeoJSON terlebih dahulu.', 'error');
+
+  progress(40);
+  try {
+    const fileInput = document.getElementById('file-input');
+    if (!fileInput.files[0]) return toast('Pilih file GeoJSON terlebih dahulu.', 'error');
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('name', name);
+    formData.append('type', type);
+    formData.append('description', desc);
+
+    const res = await fetch('/api/admin/layer/upload', { method: 'POST', body: formData });
+    const json = await res.json();
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (json.success) {
+      toast('Layer berhasil diupload!', 'success');
+      selectedFileBase64 = null;
+      document.getElementById('upload-filename').textContent = 'Klik untuk pilih file .geojson';
+      document.getElementById('upload-name').value = '';
+      document.getElementById('upload-desc').value = '';
+      document.getElementById('file-input').value  = '';
+      await loadAdminData();
+    } else {
+      toast('Gagal upload: ' + json.error, 'error');
+    }
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+async function doDeleteLayer(fileId, name) {
+  if (!confirm(`Hapus layer "${name}"? Ini tidak dapat dibatalkan.`)) return;
+  progress(30);
+  try {
+    const res = await apiFetch(`/api/admin/layer/${fileId}`, { method: 'DELETE' });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) { toast('Layer dihapus.', 'success'); await loadAdminData(); }
+    else toast('Gagal hapus: ' + res.error, 'error');
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// SYMBOLOGY EDITOR (global per layer)
+// ============================================================
+const COLORS   = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#ec407a',
+                  '#ff7043','#26c6da','#d4e157','#ff5252','#ffffff','#95a5a6','#607d8b','#000000'];
+const SHAPES   = ['circle','square','triangle','diamond'];
+const PATTERNS = ['solid','hatch','cross'];
+
+function renderSymbologyEditor() {
+  const c = document.getElementById('sym-container');
+  if (!layersMeta.length) { c.innerHTML = '<div style="color:#444;font-size:13px;">Belum ada layer.</div>'; return; }
+
+  let html = '';
+  layersMeta.forEach(l => {
+    const s = editedSym[l.fileId] || { type: l.type||'polygon', color:'#3498db', fillColor:'#3498db', fillOpacity:0.4, weight:2 };
+    html += `<div class="card">
+      <div style="font-weight:600;color:#ddd;margin-bottom:16px;">${l.name}
+        <span class="badge badge-${l.type||'polygon'}" style="margin-left:6px;">${l.type||'polygon'}</span>
+      </div>`;
+
+    if (l.type === 'point') {
+      html += symColorRow(l.fileId, 'Warna stroke', 'color', s.color||'#3498db');
+      html += symColorRow(l.fileId, 'Warna fill',   'fillColor', s.fillColor||s.color||'#3498db');
+      html += symSlider(l.fileId,   'Radius',        'radius',      s.radius||8,       3, 30);
+      html += symSlider(l.fileId,   'Fill opacity',  'fillOpacity', s.fillOpacity||0.8, 0, 1, 0.05);
+      html += symSelect(l.fileId,   'Bentuk',        'shape',   SHAPES,   s.shape||'circle');
+    } else if (l.type === 'line') {
+      html += symColorRow(l.fileId, 'Warna',         'color',       s.color||'#3498db');
+      html += symSlider(l.fileId,   'Ketebalan',     'weight',      s.weight||3,        1, 20);
+      html += symSlider(l.fileId,   'Opacity',       'opacity',     s.opacity||1,        0, 1, 0.05);
+      html += symText(l.fileId,     'Dash (mis: 5,5)','dashArray',  s.dashArray||'');
+    } else {
+      html += symColorRow(l.fileId, 'Warna garis',  'color',       s.color||'#2ecc71');
+      html += symColorRow(l.fileId, 'Warna fill',   'fillColor',   s.fillColor||s.color||'#2ecc71');
+      html += symSlider(l.fileId,   'Ketebalan',    'weight',       s.weight||2,         1, 10);
+      html += symSlider(l.fileId,   'Fill opacity', 'fillOpacity',  s.fillOpacity||0.4,  0, 1, 0.05);
+      html += symSelect(l.fileId,   'Pola fill',   'fillPattern', PATTERNS, s.fillPattern||'solid');
+    }
+
+    html += '</div>';
+  });
+  c.innerHTML = html;
+}
+
+function symColorRow(id, label, key, val) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <div class="color-grid">${COLORS.map(c =>
+      `<div class="color-swatch${c===val?' selected':''}" style="background:${c}"
+        onclick="pickColor('${id}','${key}','${c}',this)"></div>`).join('')}
+    </div>
+    <input type="color" value="${val||'#3498db'}" id="cust-${id}-${key}"
+      oninput="setSymProp('${id}','${key}',this.value)"
+      style="width:28px;height:28px;border:none;background:none;cursor:pointer;">
+  </div>`;
+}
+
+function symSlider(id, label, key, val, min, max, step=1) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${val}"
+      style="flex:1;accent-color:#4fc3f7;"
+      oninput="setSymProp('${id}','${key}',parseFloat(this.value)); document.getElementById('sv-${id}-${key}').textContent=this.value">
+    <span id="sv-${id}-${key}" style="font-size:12px;color:#666;min-width:36px;text-align:right;">${val}</span>
+  </div>`;
+}
+
+function symSelect(id, label, key, options, val) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <select class="form-control" style="flex:1;" onchange="setSymProp('${id}','${key}',this.value)">
+      ${options.map(o => `<option value="${o}"${o===val?' selected':''}>${o}</option>`).join('')}
+    </select>
+  </div>`;
+}
+
+function symText(id, label, key, val) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <input type="text" class="form-control" style="flex:1;" value="${val||''}"
+      oninput="setSymProp('${id}','${key}',this.value)" placeholder="${label}">
+  </div>`;
+}
+
+function pickColor(layerId, key, color, el) {
+  el.closest('.color-grid').querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  setSymProp(layerId, key, color);
+  const custInput = document.getElementById('cust-'+layerId+'-'+key);
+  if (custInput) custInput.value = color;
+}
+
+function setSymProp(layerId, key, value) {
+  if (!editedSym[layerId]) editedSym[layerId] = {};
+  editedSym[layerId][key] = value;
+}
+
+async function saveSymbology() {
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/symbology', { data: editedSym });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) toast('Symbology disimpan!', 'success');
+    else toast('Gagal simpan: ' + res.error, 'error');
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// PER-FEATURE SYMBOLOGY — EDITOR BARU
+// Mirip "Categorized" di ArcGIS/QGIS
+// ============================================================
+
+// Palette warna untuk random/ratio
+const PALETTE_RANDOM = [
+  '#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c',
+  '#e67e22','#2980b9','#27ae60','#8e44ad','#16a085','#d35400',
+  '#c0392b','#2471a3','#1e8449','#7d3c98','#148f77','#ba4a00',
+  '#ec407a','#26c6da','#d4e157','#ff7043','#26a69a','#ab47bc',
+];
+
+// Gradasi untuk ratio (biru ke merah)
+const PALETTE_RATIO_START = [41,  128, 185]; // biru
+const PALETTE_RATIO_END   = [231, 76,  60];  // merah
+
+function renderPfLayerDropdown() {
+  const sel = document.getElementById('pf-layer-select');
+  sel.innerHTML = '<option value="">— Pilih layer —</option>';
+  layersMeta.forEach(l => {
+    sel.innerHTML += `<option value="${l.fileId}">${l.name} (${l.type||'polygon'})</option>`;
+  });
+}
+
+async function onPfLayerChange() {
+  const fileId = document.getElementById('pf-layer-select').value;
+  if (!fileId) {
+    document.getElementById('pf-config-area').style.display = 'none';
+    return;
+  }
+  pfCurrentFileId = fileId;
+  pfCurrentField  = null;
+  pfCurrentValues = [];
+  pfCurrentStyles = {};
+
+  document.getElementById('pf-config-area').style.display = 'block';
+  document.getElementById('pf-values-card').style.display  = 'none';
+
+  // Muat GeoJSON untuk mendapat daftar field
+  if (!pfGeojsonCache[fileId]) {
+    progress(30);
+    try {
+      const res = await apiFetch(`/api/layer/${fileId}`);
+      progress(70);
+      if (!res.success) { toast('Gagal baca layer: ' + res.error, 'error'); progress(0); return; }
+      pfGeojsonCache[fileId] = res.geojson;
+    } catch (err) {
+      progress(0);
+      toast('Error: ' + err.message, 'error');
+      return;
+    }
+    progress(100);
+    setTimeout(() => progress(0), 400);
+  }
+
+  // Isi dropdown field dari properties feature pertama
+  const geojson   = pfGeojsonCache[fileId];
+  const features  = geojson.features || [];
+  const fieldSel  = document.getElementById('pf-field-select');
+  fieldSel.innerHTML = '<option value="">— Pilih field —</option>';
+
+  if (features.length > 0) {
+    const props = features[0].properties || {};
+    Object.keys(props).filter(k => !k.startsWith('_')).forEach(k => {
+      fieldSel.innerHTML += `<option value="${k}">${k}</option>`;
+    });
+  }
+
+  // Load existing per-feature config jika ada
+  const pfKey = 'pf__' + fileId;
+  if (editedSym[pfKey]) {
+    const existing = editedSym[pfKey];
+    if (existing.fieldName) {
+      fieldSel.value  = existing.fieldName;
+      pfCurrentField  = existing.fieldName;
+      pfCurrentStyles = JSON.parse(JSON.stringify(existing.styles || {}));
+      pfCurrentMode   = existing.mode || 'manual';
+      setMode(pfCurrentMode);
+      await loadFeatureValues();
+    }
+  }
+}
+
+async function loadFeatureValues() {
+  const field = document.getElementById('pf-field-select').value;
+  if (!field || !pfCurrentFileId) return;
+  pfCurrentField = field;
+
+  const geojson  = pfGeojsonCache[pfCurrentFileId];
+  const features = (geojson && geojson.features) || [];
+
+  // Hitung unique values dan count
+  const countMap = {};
+  features.forEach(f => {
+    const val = f.properties && f.properties[field];
+    if (val === undefined || val === null || String(val).trim() === '') return;
+    const key = String(val).trim();
+    countMap[key] = (countMap[key] || 0) + 1;
+  });
+
+  pfCurrentValues = Object.keys(countMap).sort().map(v => ({ value: v, count: countMap[v] }));
+
+  // Buat style untuk nilai yang belum punya warna
+  pfCurrentValues.forEach((item, i) => {
+    if (!pfCurrentStyles[item.value]) {
+      // Ambil warna dari palette random
+      const color = PALETTE_RANDOM[i % PALETTE_RANDOM.length];
+      pfCurrentStyles[item.value] = {
+        color:       color,
+        fillColor:   color,
+        fillOpacity: 0.7,
+        weight:      2,
+      };
+    }
+  });
+
+  document.getElementById('pf-values-card').style.display = 'block';
+  renderFeatureList();
+}
+
+function renderFeatureList() {
+  const container = document.getElementById('pf-feature-list');
+  if (!pfCurrentValues.length) {
+    container.innerHTML = '<div style="color:#444;font-size:13px;">Tidak ada nilai ditemukan untuk field ini.</div>';
+    return;
+  }
+
+  const totalCount = pfCurrentValues.reduce((s, v) => s + v.count, 0);
+  let html = '';
+
+  pfCurrentValues.forEach((item, i) => {
+    const s     = pfCurrentStyles[item.value] || {};
+    const fill  = s.fillColor || s.color || '#607d8b';
+    const ratio = totalCount > 0 ? (item.count / totalCount * 100).toFixed(1) : 0;
+
+    html += `<div class="feat-row" id="featrow-${i}">
+      <div class="feat-swatch" id="swatch-${i}"
+        style="background:${fill};border-color:${s.color||fill};"
+        onclick="openMiniPicker(${i})"
+        title="Klik untuk ubah warna fill"></div>
+      <div class="feat-label">
+        <div>${escHtml(item.value)}</div>
+        <div style="font-size:11px;color:#555;">${item.count} fitur · ${ratio}%</div>
+        <div class="ratio-bar-wrap" style="margin-top:4px;">
+          <div class="ratio-bar" style="width:${ratio}%;background:${fill};"></div>
+        </div>
+      </div>
+      <div class="feat-color-inputs">
+        <div>
+          <div class="feat-color-label">Fill</div>
+          <input type="color" value="${fill}"
+            oninput="setPfColor(${i},'fillColor',this.value)"
+            title="Warna isi">
+        </div>
+        <div>
+          <div class="feat-color-label">Stroke</div>
+          <input type="color" value="${s.color||fill}"
+            oninput="setPfColor(${i},'color',this.value)"
+            title="Warna garis">
+        </div>
+        <div>
+          <div class="feat-color-label">Opacity</div>
+          <input type="range" min="0" max="1" step="0.05" value="${s.fillOpacity!==undefined?s.fillOpacity:0.7}"
+            style="width:60px;accent-color:#4fc3f7;"
+            oninput="setPfProp(${i},'fillOpacity',parseFloat(this.value))"
+            title="Transparansi">
+        </div>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setPfColor(i, key, val) {
+  const item = pfCurrentValues[i];
+  if (!item) return;
+  if (!pfCurrentStyles[item.value]) pfCurrentStyles[item.value] = {};
+  pfCurrentStyles[item.value][key] = val;
+
+  // Update swatch visual
+  const s     = pfCurrentStyles[item.value];
+  const fill  = s.fillColor || s.color || '#607d8b';
+  const sw    = document.getElementById('swatch-' + i);
+  if (sw) { sw.style.background = fill; sw.style.borderColor = s.color || fill; }
+
+  // Update ratio bar
+  const ratioBar = document.querySelector(`#featrow-${i} .ratio-bar`);
+  if (ratioBar) ratioBar.style.background = fill;
+}
+
+function setPfProp(i, key, val) {
+  const item = pfCurrentValues[i];
+  if (!item) return;
+  if (!pfCurrentStyles[item.value]) pfCurrentStyles[item.value] = {};
+  pfCurrentStyles[item.value][key] = val;
+}
+
+// Interpo warna hex dari A ke B
+function lerpColor(a, b, t) {
+  const ar = parseInt(a.slice(1,3),16), ag = parseInt(a.slice(3,5),16), ab = parseInt(a.slice(5,7),16);
+  const br = parseInt(b.slice(1,3),16), bg = parseInt(b.slice(3,5),16), bb = parseInt(b.slice(5,7),16);
+  const r  = Math.round(ar + (br-ar)*t).toString(16).padStart(2,'0');
+  const g  = Math.round(ag + (bg-ag)*t).toString(16).padStart(2,'0');
+  const bl2 = Math.round(ab + (bb-ab)*t).toString(16).padStart(2,'0');
+  return '#' + r + g + bl2;
+}
+
+function applyRandomColors() {
+  // Shuffle palette dan assign
+  const shuffled = [...PALETTE_RANDOM].sort(() => Math.random() - 0.5);
+  pfCurrentValues.forEach((item, i) => {
+    const color = shuffled[i % shuffled.length];
+    if (!pfCurrentStyles[item.value]) pfCurrentStyles[item.value] = {};
+    pfCurrentStyles[item.value].color     = color;
+    pfCurrentStyles[item.value].fillColor = color;
+  });
+  setMode('random');
+  renderFeatureList();
+  toast('Warna acak diterapkan.', 'success');
+}
+
+function applyRatioColors() {
+  const n = pfCurrentValues.length;
+  const startHex = '#' +
+    PALETTE_RATIO_START.map(v => v.toString(16).padStart(2,'0')).join('');
+  const endHex = '#' +
+    PALETTE_RATIO_END.map(v => v.toString(16).padStart(2,'0')).join('');
+
+  pfCurrentValues.forEach((item, i) => {
+    const t     = n > 1 ? i / (n - 1) : 0;
+    const color = lerpColor(startHex, endHex, t);
+    if (!pfCurrentStyles[item.value]) pfCurrentStyles[item.value] = {};
+    pfCurrentStyles[item.value].color     = color;
+    pfCurrentStyles[item.value].fillColor = color;
+  });
+  setMode('ratio');
+  renderFeatureList();
+  toast('Gradasi warna diterapkan.', 'success');
+}
+
+function setMode(mode) {
+  pfCurrentMode = mode;
+  ['manual','random','ratio'].forEach(m => {
+    document.getElementById('tab-' + m).classList.toggle('active', m === mode);
+  });
+  const descs = {
+    manual: 'Atur warna setiap nilai secara manual menggunakan color picker.',
+    random: 'Setiap nilai mendapat warna acak yang berbeda secara otomatis.',
+    ratio:  'Warna bergradasi dari biru (pertama) ke merah (terakhir) sesuai urutan alfabet.',
+  };
+  const el = document.getElementById('mode-desc');
+  if (el) el.textContent = descs[mode] || '';
+}
+
+// Mini color picker (klik swatch)
+let openPickerIndex = -1;
+
+function openMiniPicker(i) {
+  // Tutup picker yang mungkin terbuka sebelumnya
+  document.querySelectorAll('.mini-picker').forEach(p => p.remove());
+  if (openPickerIndex === i) { openPickerIndex = -1; return; }
+  openPickerIndex = i;
+
+  const item  = pfCurrentValues[i];
+  const s     = pfCurrentStyles[item.value] || {};
+  const fill  = s.fillColor || s.color || '#607d8b';
+
+  const wrap  = document.getElementById('swatch-' + i);
+  const div   = document.createElement('div');
+  div.className = 'mini-picker';
+  div.innerHTML = `
+    <div style="font-size:11px;color:#555;margin-bottom:6px;">Pilih warna fill — ${escHtml(item.value)}</div>
+    <div class="mini-grid">${PALETTE_RANDOM.map(c =>
+      `<div class="mini-swatch${c===fill?' selected':''}" style="background:${c}"
+        onclick="pickPfFill(${i},'${c}',this)"></div>`).join('')}
+    </div>
+    <div class="mini-custom">
+      <label>Custom:</label>
+      <input type="color" value="${fill}" oninput="pickPfFill(${i},this.value)">
+    </div>`;
+  wrap.style.position = 'relative';
+  wrap.appendChild(div);
+
+  // Tutup jika klik di luar
+  setTimeout(() => {
+    document.addEventListener('click', function outsideClick(e) {
+      if (!div.contains(e.target) && e.target !== wrap) {
+        div.remove();
+        openPickerIndex = -1;
+        document.removeEventListener('click', outsideClick);
+      }
+    });
+  }, 50);
+}
+
+function pickPfFill(i, color, el) {
+  if (el && el.closest) {
+    el.closest('.mini-grid') && el.closest('.mini-grid').querySelectorAll('.mini-swatch')
+      .forEach(s => s.classList.remove('selected'));
+    el.classList && el.classList.add('selected');
+  }
+  setPfColor(i, 'fillColor', color);
+}
+
+async function savePfSymbology() {
+  if (!pfCurrentFileId || !pfCurrentField) {
+    return toast('Pilih layer dan field terlebih dahulu.', 'error');
+  }
+  if (!pfCurrentValues.length) {
+    return toast('Tidak ada nilai untuk disimpan.', 'error');
+  }
+
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/pf-symbology', {
+      fileId:        pfCurrentFileId,
+      fieldName:     pfCurrentField,
+      featureStyles: pfCurrentStyles,
+      mode:          pfCurrentMode,
+    });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) {
+      // Update local state
+      const pfKey = 'pf__' + pfCurrentFileId;
+      editedSym[pfKey] = {
+        fileId:    pfCurrentFileId,
+        fieldName: pfCurrentField,
+        mode:      pfCurrentMode,
+        styles:    pfCurrentStyles,
+      };
+      toast('Symbology per-fitur disimpan!', 'success');
+      renderLayerTable(); // Update tanda 🖌 di tabel
+    } else {
+      toast('Gagal simpan: ' + res.error, 'error');
+    }
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+async function clearPfSymbology() {
+  if (!pfCurrentFileId) return;
+  if (!confirm('Hapus symbology per-fitur untuk layer ini?')) return;
+
+  const pfKey  = 'pf__' + pfCurrentFileId;
+  const merged = { ...editedSym };
+  delete merged[pfKey];
+
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/symbology', { data: merged });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) {
+      editedSym        = merged;
+      pfCurrentStyles  = {};
+      pfCurrentValues  = [];
+      pfCurrentField   = null;
+      document.getElementById('pf-values-card').style.display = 'none';
+      toast('Symbology per-fitur dihapus.', 'success');
+      renderLayerTable();
+    } else {
+      toast('Gagal hapus: ' + res.error, 'error');
+    }
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// SPREADSHEET CONFIG
+// ============================================================
+const COL_FIELDS = [
+  { key: 'lat',     label: 'Latitude' },
+  { key: 'lng',     label: 'Longitude' },
+  { key: 'kabkota', label: 'Kab/Kota' },
+  { key: 'kec',     label: 'Kecamatan' },
+  { key: 'desa',    label: 'Desa/Kelurahan' },
+  { key: 'jenis',   label: 'Jenis Bencana' },
+  { key: 'nama',    label: 'Nama Bencana' },
+  { key: 'tanggal', label: 'Tanggal' },
+];
+
+async function loadSheets() {
+  const ssId = document.getElementById('ss-id').value.trim();
+  if (!ssId) return toast('Masukkan Spreadsheet ID.', 'error');
+  progress(30);
+  try {
+    const res = await apiFetch(`/api/admin/sheets-list?spreadsheetId=${encodeURIComponent(ssId)}`);
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (!res.success) { toast('Gagal: ' + res.error, 'error'); return; }
+    const sel = document.getElementById('sheet-select');
+    sel.innerHTML = '<option value="">— Pilih sheet —</option>';
+    res.sheets.forEach(s => { sel.innerHTML += `<option value="${s}">${s}</option>`; });
+    document.getElementById('sheet-picker-card').style.display = 'block';
+    document.getElementById('col-map-card').style.display      = 'none';
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+async function loadColumns() {
+  const ssId  = document.getElementById('ss-id').value.trim();
+  const sheet = document.getElementById('sheet-select').value;
+  if (!sheet) return;
+  progress(30);
+  try {
+    const res = await apiFetch(`/api/admin/sheet-columns?spreadsheetId=${encodeURIComponent(ssId)}&sheetName=${encodeURIComponent(sheet)}`);
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (!res.success) { toast('Gagal: ' + res.error, 'error'); return; }
+    sheetColumns = res.columns;
+    renderColMapping();
+    document.getElementById('col-map-card').style.display = 'block';
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function renderColMapping() {
+  const g = document.getElementById('col-map-grid');
+  let html = '';
+  COL_FIELDS.forEach(f => {
+    html += `<div class="form-row">
+      <label class="form-label">${f.label}</label>
+      <select class="form-control" id="map-${f.key}">
+        <option value="">— Pilih kolom —</option>
+        ${sheetColumns.map(c => `<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>`;
+  });
+  g.innerHTML = html;
+}
+
+async function loadCurrentSheetConfig() {
+  try {
+    const res = await apiFetch('/api/admin/sheet-config');
+    if (!res.success || !res.config) return;
+    const cfg = res.config;
+    if (cfg.spreadsheetId) document.getElementById('ss-id').value = cfg.spreadsheetId;
+  } catch (_) {}
+}
+
+async function saveSheetConfig() {
+  const ssId  = document.getElementById('ss-id').value.trim();
+  const sheet = document.getElementById('sheet-select').value;
+  if (!ssId || !sheet) return toast('Pilih spreadsheet dan sheet terlebih dahulu.', 'error');
+
+  const columns   = {};
+  COL_FIELDS.forEach(f => {
+    const el = document.getElementById('map-' + f.key);
+    if (el && el.value) columns[f.key] = el.value;
+  });
+  const extraCols = document.getElementById('extra-cols').value.split(',').map(s=>s.trim()).filter(Boolean);
+
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/sheet-config', {
+      config: { spreadsheetId: ssId, sheetName: sheet, columns, extraColumns: extraCols }
+    });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) toast('Konfigurasi spreadsheet disimpan!', 'success');
+    else toast('Gagal simpan: ' + res.error, 'error');
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// STYLE BENCANA (per jenis)
+// ============================================================
+function renderDisasterStyleEditor() {
+  disasterStyles = {};
+  Object.keys(editedSym).forEach(k => {
+    // Format baru: disaster__<jenis>
+    if (k.startsWith('disaster__')) disasterStyles[k] = editedSym[k];
+    // Migrasi otomatis format lama: __disaster_<jenis>__  →  disaster__<jenis>
+    else if (k.startsWith('__disaster_') && k.endsWith('__') && k !== '__disaster__') {
+      const newKey = 'disaster__' + k.slice(11, -2);
+      disasterStyles[newKey] = { ...editedSym[k] };
+    }
+  });
+  renderJenisList();
+}
+
+async function loadJenisBencana() {
+  const btn    = document.getElementById('btn-reload-jenis');
+  const status = document.getElementById('jenis-load-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Memuat…';
+  status.style.color = '#555';
+  status.textContent = 'Membaca data dari spreadsheet…';
+  progress(30);
+  try {
+    const res = await apiFetch('/api/admin/jenis-bencana');
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (!res.success) {
+      status.style.color = '#e74c3c';
+      status.textContent = 'Gagal: ' + res.error;
+      btn.disabled = false;
+      btn.textContent = '🔄 Muat dari Spreadsheet';
+      return;
+    }
+    const jenisList = res.jenis || [];
+    if (!jenisList.length) {
+      status.style.color = '#f1c40f';
+      status.textContent = '⚠ Tidak ada jenis bencana ditemukan.';
+      btn.disabled = false;
+      btn.textContent = '🔄 Muat dari Spreadsheet';
+      return;
+    }
+    let added = 0;
+    jenisList.forEach((nama, i) => {
+      // FIX: gunakan format key baru disaster__<jenis> (tanpa trailing __)
+      const key = 'disaster__' + nama.toLowerCase().replace(/\s+/g,'_');
+      if (!disasterStyles[key]) {
+        // FIX: beri warna default yang berbeda-beda per jenis, bukan semua merah
+        const defaultColor = PALETTE_RANDOM[i % PALETTE_RANDOM.length];
+        disasterStyles[key] = {
+          color:       defaultColor,
+          fillColor:   defaultColor,
+          fillOpacity: 0.8,
+          radius:      8,
+          shape:       'circle',
+          weight:      2,
+          _label:      nama,
+        };
+        added++;
+      } else {
+        // Pastikan _label selalu ada
+        disasterStyles[key]._label = nama;
+      }
+    });
+    renderJenisList();
+    document.getElementById('btn-save-disaster').disabled = false;
+    status.style.color = '#2ecc71';
+    status.textContent = `✔ ${jenisList.length} jenis bencana dimuat${added > 0 ? ` (${added} baru)` : ' (semua sudah ada)'}.`;
+  } catch (err) {
+    progress(0);
+    status.style.color = '#e74c3c';
+    status.textContent = 'Error: ' + err.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 Muat dari Spreadsheet';
+}
+
+function buildDisasterStyleUI(key, label, s) {
+  return `<div id="dsrow-${key}" style="margin-bottom:12px;">
+    <div style="font-size:13px;color:#aaa;margin-bottom:8px;">${label}</div>
+    ${symColorRowDs(key,'Warna stroke','color',s.color||'#3498db')}
+    ${symColorRowDs(key,'Warna fill','fillColor',s.fillColor||s.color||'#3498db')}
+    ${symSliderDs(key,'Radius','radius',s.radius||8,3,30)}
+    ${symSliderDs(key,'Fill opacity','fillOpacity',s.fillOpacity!==undefined?s.fillOpacity:0.8,0,1,0.05)}
+    ${symSelectDs(key,'Bentuk','shape',SHAPES,s.shape||'circle')}
+  </div>`;
+}
+
+function symColorRowDs(id, label, key, val) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <div class="color-grid">${COLORS.map(c =>
+      `<div class="color-swatch${c===val?' selected':''}" style="background:${c}"
+        onclick="pickColorDs('${id}','${key}','${c}',this)"></div>`).join('')}
+    </div>
+    <input type="color" value="${val||'#3498db'}" id="dscust-${id}-${key}"
+      oninput="setDsProp('${id}','${key}',this.value)"
+      style="width:28px;height:28px;border:none;background:none;cursor:pointer;">
+  </div>`;
+}
+
+function symSliderDs(id, label, key, val, min, max, step=1) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${val}"
+      style="flex:1;accent-color:#4fc3f7;"
+      oninput="setDsProp('${id}','${key}',parseFloat(this.value)); document.getElementById('svds-${id}-${key}').textContent=this.value">
+    <span id="svds-${id}-${key}" style="font-size:12px;color:#666;min-width:36px;text-align:right;">${val}</span>
+  </div>`;
+}
+
+function symSelectDs(id, label, key, options, val) {
+  return `<div class="sym-row">
+    <span class="sym-label">${label}</span>
+    <select class="form-control" style="flex:1;" onchange="setDsProp('${id}','${key}',this.value)">
+      ${options.map(o => `<option value="${o}"${o===val?' selected':''}>${o}</option>`).join('')}
+    </select>
+  </div>`;
+}
+
+function pickColorDs(id, key, color, el) {
+  el.closest('.color-grid').querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  setDsProp(id, key, color);
+  const custInput = document.getElementById('dscust-' + id + '-' + key);
+  if (custInput) custInput.value = color;
+}
+
+function setDsProp(id, key, val) {
+  if (!disasterStyles[id]) disasterStyles[id] = {};
+  disasterStyles[id][key] = val;
+  const safeId = id.replace(/[^a-z0-9]/gi,'_');
+  // Update preview swatch
+  if (key === 'fillColor' || key === 'color') {
+    const s      = disasterStyles[id];
+    const fill   = s.fillColor || s.color || '#3498db';
+    const preview = document.getElementById('preview-ds-' + safeId);
+    if (preview) { preview.style.background = fill; preview.style.borderColor = s.color || fill; }
+  }
+  // Update opacity when toggled
+  if (key === '_enabled') {
+    const preview = document.getElementById('preview-ds-' + safeId);
+    const labelEl = document.getElementById('label-ds-' + safeId);
+    if (preview) preview.style.opacity = val ? 1 : 0.3;
+    if (labelEl) labelEl.style.color = val ? '#ddd' : '#555';
+  }
+}
+
+function renderJenisList() {
+  const c    = document.getElementById('jenis-style-list');
+  const keys = Object.keys(disasterStyles).filter(k => k.startsWith('disaster__'));
+  if (!keys.length) {
+    c.innerHTML = '<div style="color:#444;font-size:13px;">Belum ada jenis bencana. Klik "Muat dari Spreadsheet".</div>';
+    return;
+  }
+  let html = '';
+  keys.sort().forEach(k => {
+    const s     = disasterStyles[k];
+    // FIX: parse label dari key format baru disaster__<jenis>
+    const label = s._label || k.replace(/^disaster__/, '').replace(/_/g,' ');
+    const labelDisplay = label.charAt(0).toUpperCase() + label.slice(1);
+    const fill  = s.fillColor || s.color || '#607d8b';
+    const safeId = k.replace(/[^a-z0-9]/gi,'_');
+    const isEnabled = s._enabled !== false; // default aktif
+
+    html += `<div class="card" style="margin-bottom:12px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label class="toggle-switch" title="Aktifkan/nonaktifkan tampilan jenis ini di peta">
+            <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="setDsProp('${k}','_enabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-weight:600;color:${isEnabled?'#ddd':'#555'};font-size:14px;" id="label-ds-${safeId}">${labelDisplay}</span>
+        </div>
+        <div id="preview-ds-${safeId}" style="width:20px;height:20px;border-radius:50%;
+          background:${fill};border:2px solid ${s.color||fill};opacity:${isEnabled?1:0.3}"></div>
+      </div>
+      ${buildDisasterStyleUI(k, '', s)}
+    </div>`;
+  });
+  c.innerHTML = html;
+  document.getElementById('btn-save-disaster').disabled = false;
+}
+
+async function saveDisasterStyle() {
+  const styleToSave = {};
+  // FIX: hanya simpan key format baru disaster__<jenis>
+  Object.keys(disasterStyles).forEach(k => {
+    if (k.startsWith('disaster__')) styleToSave[k] = disasterStyles[k];
+  });
+  const merged = { ...editedSym, ...styleToSave };
+  // Hapus key format lama jika masih ada
+  Object.keys(merged).forEach(k => {
+    if (k.startsWith('__disaster_') && k.endsWith('__')) delete merged[k];
+  });
+
+  progress(30);
+  try {
+    const res = await apiPost('/api/admin/symbology', { data: merged });
+    progress(100);
+    setTimeout(() => progress(0), 400);
+    if (res.success) {
+      editedSym = merged;
+      toast('Style bencana disimpan! Muat ulang peta untuk melihat perubahan.', 'success');
+    } else {
+      toast('Gagal: ' + res.error, 'error');
+    }
+  } catch (err) {
+    progress(0);
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// BUKA PETA PUBLIK
+// ============================================================
+function openPublicMap() {
+  window.open('/', '_blank');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showSection(id, evt) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3500);
+}
+
+function progress(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+</script>
+</body>
+</html>
