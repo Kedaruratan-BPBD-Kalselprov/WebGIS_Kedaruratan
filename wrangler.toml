@@ -12,7 +12,7 @@ binding = "ASSETS"
 # ── Environment variables (non-secret) ───────────────────────────
 [vars]
 ADMIN_PASSWORD        = "admin123"
-GOOGLE_ROOT_FOLDER_ID = "1GhexqE2mcJjBDMVkCR8ImZ_ydEjxRi8E"
+GOOGLE_ROOT_FOLDER_ID = "1GhexqE2mcJjBDMVkCR8ImZ_ydEjxRi8E?hl"
 
 # ── Secrets (set via CLI, JANGAN taruh di sini) ───────────────────
 # Jalankan perintah ini sekali:
